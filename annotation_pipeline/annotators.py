@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -79,6 +80,35 @@ def _overlay_mask(
     contour_overlay.putalpha(contour_image.point(lambda value: 255 if value > 0 else 0))
     return Image.alpha_composite(faded_image, contour_overlay)
 
+def factor_pair_closest_to_aspect(num_tokens: int, aspect_ratio: float) -> tuple[int, int]:
+    if num_tokens <= 0:
+        raise ValueError("Image token count must be positive.")
+
+    best_h = 1
+    best_w = num_tokens
+    best_error = float("inf")
+    for h in range(1, int(math.sqrt(num_tokens)) + 1):
+        if num_tokens % h != 0:
+            continue
+        w = num_tokens // h
+        for candidate_h, candidate_w in ((h, w), (w, h)):
+            error = abs((candidate_w / candidate_h) - aspect_ratio)
+            if error < best_error:
+                best_h = candidate_h
+                best_w = candidate_w
+                best_error = error
+    return best_h, best_w
+
+
+def image_aspect_ratio(image, inputs: dict) -> float:
+    pixel_values = inputs.get("pixel_values")
+    if isinstance(pixel_values, torch.Tensor) and pixel_values.ndim >= 4:
+        height = int(pixel_values.shape[-2])
+        width = int(pixel_values.shape[-1])
+        if height > 0 and width > 0:
+            return width / height
+    width, height = image.size
+    return width / height
 
 class Annotator(ABC):
     def __init__(self, overlay_alpha: float = 1, mask_threshold: float = 0.5) -> None:
@@ -367,8 +397,9 @@ class Attention(Annotator):
                 prompt_inputs,
             )
             grid_h, grid_w = self._get_grid_shape(
-                backend,
-                prompt_inputs,
+                image=pil_image,
+                inputs=prompt_inputs,
+                image_token_count=prompt_image_token_mask.sum().item(),
             )
 
             with torch.inference_mode():
@@ -434,17 +465,14 @@ class Attention(Annotator):
 
     def _get_grid_shape(
         self,
-        backend: dict,
-        prompt_inputs,
+        inputs,
+        image,
+        image_token_count: int,
     ) -> tuple[int, int]:
-        if backend["grid_mode"] == "qwen":
-            image_grid_thw = prompt_inputs.get("image_grid_thw")
-            if image_grid_thw is None:
-                raise ValueError("Qwen backend requires image_grid_thw to infer the attention grid.")
-            grid_h, grid_w = map(int, (image_grid_thw[0, 1:] / 2).tolist())
-            return grid_h, grid_w
-        if backend["grid_mode"] == "fixed":
-            return backend["grid_size"]
+        square_size = int(math.sqrt(image_token_count))
+        if square_size * square_size == image_token_count:
+            return square_size, square_size
+        return factor_pair_closest_to_aspect(image_token_count, image_aspect_ratio(image, inputs))
 
     def _prepare_image_for_backend(self, image: Image.Image, backend: dict) -> Image.Image:
         resize_to = backend.get("resize_to")
@@ -455,33 +483,28 @@ class Attention(Annotator):
     def _backend_configs(self) -> list[dict]:
         return [
             {
-                "name": "qwen2_5_vl_7b",
-                "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+                "name": "llava_1.5_7b",
+                "model_id": "llava-hf/llava-1.5-7b-hf",
                 "processor_kwargs": {},
                 "model_kwargs": {},
-                "grid_mode": "qwen",
                 "resize_to": None,
-                "drop_topk_image_tokens": 0,
+                "drop_topk_image_tokens": 3,
                 "device": "cuda:5"
             },
             {
-                "name": "internvl3_5_8b",
-                "model_id": "OpenGVLab/InternVL3_5-8B-HF",
+                "name": "llava_ov_8b",
+                "model_id": "lmms-lab/LLaVA-OneVision-1.5-8B-Instruct",
                 "processor_kwargs": {"trust_remote_code": True},
                 "model_kwargs": {"trust_remote_code": True},
-                "grid_mode": "fixed",
-                "grid_size": (16, 16),
-                "resize_to": (448, 448),
-                "drop_topk_image_tokens": 0,
+                "resize_to": None,
+                "drop_topk_image_tokens": 3,
                 "device": "cuda:6"
             },
             {
-                "name": "gemma_3_12b",
-                "model_id": "google/gemma-3-12b-it",
+                "name": "glm_4.6v_flash",
+                "model_id": "zai-org/GLM-4.6V-Flash",
                 "processor_kwargs": {"trust_remote_code": True},
                 "model_kwargs": {"trust_remote_code": True},
-                "grid_mode": "fixed",
-                "grid_size": (16, 16),
                 "resize_to": None,
                 "drop_topk_image_tokens": 3,
                 "device": "cuda:7"
