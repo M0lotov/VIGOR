@@ -1,18 +1,16 @@
-# [NeurIPS'26] VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models
+<div align="center">
 
-[[Paper](https://openreview.net/forum?id=xlHEXHYvlZ)] [[Dataset](https://huggingface.co/datasets/VIGOR-Benchmark/VIGOR-Benchmark)]
+# VIGOR
 
-This repository holds the benchmark data, evaluation code, and dataset construction pipeline of [VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models](https://openreview.net/forum?id=xlHEXHYvlZ) by [Yanlin Chen](https://yanlinchen.org), [Tang Li](https://tangli0305.github.io/) and [Xi Peng](https://deep-real.github.io/dr_xipeng.html).
-If you find our paper and code useful in your research, please consider citing:
+**Benchmarking Visual Rationale Correctness<br>in Multimodal Large Language Models**
 
-```
-@inproceedings{chen2026vigor,
- title={VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models},
- author={Chen, Yanlin and Li, Tang and Peng, Xi},
- booktitle={Advances in Neural Information Processing Systems (NeurIPS), Evaluations and Datasets Track},
- year={2026}
-}
-```
+Yanlin Chen · Tang Li · Xi Peng
+
+**NeurIPS 2026**
+
+[Paper](https://openreview.net/forum?id=xlHEXHYvlZ) · [Dataset](https://huggingface.co/datasets/VIGOR-Benchmark/VIGOR-Benchmark)
+
+</div>
 
 ## Overview
 A trustworthy MLLM should be correct not only in what it says, but also in the visual evidence it relies on. VIGOR evaluates this **double correctness** by pairing 1,000 images with 3,011 visual concepts across four abstraction levels (primitive, intermediate, object, scene) and 31,433 pixel-level masks that specify the evidence a correct rationale should cover. A model's concept-token attention is compared against these masks with Average Precision (AP) and Pointing Accuracy, revealing that current MLLMs only partially "look at what they say".
@@ -55,3 +53,16 @@ Part of our code is borrowed from the following repositories.
 - [pycocotools](https://github.com/cocodataset/cocoapi)
 
 We thank the authors for releasing their codes. Please also consider citing their works.
+
+## Citation
+```
+@inproceedings{chen2026vigor,
+ title={VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models},
+ author={Chen, Yanlin and Li, Tang and Peng, Xi},
+ booktitle={Advances in Neural Information Processing Systems (NeurIPS), Evaluations and Datasets Track},
+ year={2026}
+}
+```
+
+## License
+The code in this repository is released under the [MIT License](LICENSE). The VIGOR annotations are built on images and annotations from [COCO](https://cocodataset.org/#termsofuse), [COCO-Stuff](https://github.com/nightrome/cocostuff), [LVIS](https://www.lvisdataset.org/terms), [PACO](https://github.com/facebookresearch/paco) and [Visual Genome](https://visualgenome.org/about), and remain subject to their respective licenses and terms of use.
