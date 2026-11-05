@@ -1,34 +1,57 @@
-# VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models
+# [NeurIPS'26] VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models
 
-This repository contains the collection and evaluation code for the VIGOR benchmark.
+[[Paper](https://openreview.net/forum?id=xlHEXHYvlZ)] [[Dataset](https://huggingface.co/datasets/VIGOR-Benchmark/VIGOR-Benchmark)]
 
-## Run Evaluation
+This repository holds the benchmark data, evaluation code, and dataset construction pipeline of [VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models](https://openreview.net/forum?id=xlHEXHYvlZ) by [Yanlin Chen](https://yanlinchen.org), [Tang Li](https://tangli0305.github.io/) and [Xi Peng](https://deep-real.github.io/dr_xipeng.html).
+If you find our paper and code useful in your research, please consider citing:
 
-Install the main dependencies:
+```
+@inproceedings{chen2026vigor,
+ title={VIGOR: Benchmarking Visual Rationale Correctness in Multimodal Large Language Models},
+ author={Chen, Yanlin and Li, Tang and Peng, Xi},
+ booktitle={Advances in Neural Information Processing Systems (NeurIPS), Evaluations and Datasets Track},
+ year={2026}
+}
+```
 
-```bash
+## Overview
+A trustworthy MLLM should be correct not only in what it says, but also in the visual evidence it relies on. VIGOR evaluates this **double correctness** by pairing 1,000 images with 3,011 visual concepts across four abstraction levels (primitive, intermediate, object, scene) and 31,433 pixel-level masks that specify the evidence a correct rationale should cover. A model's concept-token attention is compared against these masks with Average Precision (AP) and Pointing Accuracy, revealing that current MLLMs only partially "look at what they say".
+
+![overview](images/overview.png)
+
+## Installation
+```
 pip install torch transformers pillow numpy pycocotools tqdm
 ```
+The annotation pipeline additionally requires `openai` and the annotator backends listed in [Acknowledgement](#acknowledgement).
 
-Run the default model on the benchmark:
+## Data
+`train.json` is a COCO-style annotation file containing the 1,000 VIGOR images, their fixed captions, the concept categories with their abstraction level (`supercategory`), and one RLE segmentation per concept. Images are loaded from their COCO URLs, so no separate image download is needed.
 
-```bash
+## Evaluate MLLMs
+To evaluate the default model (Qwen2-VL-2B-Instruct) on VIGOR, directly run
+```
 python evaluate.py
 ```
-
-Run a specific Hugging Face model:
-
-```bash
+You can also change the model by setting `--model` to the corresponding Hugging Face id, for example
+```
 python evaluate.py --model Qwen/Qwen2.5-VL-7B-Instruct
 ```
+The script prints AP (`mean_auprc`) and Pointing Accuracy (`pointing_accuracy`) for the overall benchmark and for each concept level. Use `--max-images` for a quick smoke test and `--attn-implementation eager` (the default) so that attention maps are returned.
 
-The script prints a table with `mean_auprc` and `pointing_accuracy` for the
-overall benchmark and each concept level.
+## Build the Concept Vocabulary
+See `concept_set/`. Candidate concepts are mined from existing vision datasets, filtered and categorized by multiple LLMs, kept only when at least two LLMs agree, and cleaned in a final pass. The step-by-step workflow is documented in [concept_set/README.md](concept_set/README.md).
 
-## Repository Contents
+## Construct the Annotations
+See `annotation_pipeline/`. Source annotations from COCO, COCO-Stuff, LVIS, PACO-LVIS and Visual Genome are merged and normalized to the VIGOR vocabulary, missing concepts are identified by an MLLM, candidate masks are proposed by a pool of annotators (CLIP CAM, MLLM attention, SAM3, Grounded-SAM, CLIPSeg), and a panel of three multimodal verifiers selects the final mask by majority voting. The step-by-step workflow is documented in [annotation_pipeline/README.md](annotation_pipeline/README.md).
 
-- `evaluate.py`: main evaluation script.
-- `train.json`: COCO-style benchmark annotations.
-- `concept_set/`: scripts and notebooks for building the visual concept set.
-- `annotation_pipeline/`: scripts for constructing image-level annotations,
-  masks, verification records, and captions.
+## Acknowledgement
+Part of our code is borrowed from the following repositories.
+
+- [Transformer-MM-Explainability](https://github.com/hila-chefer/Transformer-MM-Explainability)
+- [SAM 3](https://github.com/facebookresearch/sam3)
+- [Grounded-SAM](https://github.com/IDEA-Research/Grounded-Segment-Anything)
+- [CLIPSeg](https://github.com/timojl/clipseg)
+- [pycocotools](https://github.com/cocodataset/cocoapi)
+
+We thank the authors for releasing their codes. Please also consider citing their works.
